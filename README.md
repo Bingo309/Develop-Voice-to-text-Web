@@ -21,7 +21,7 @@ Implemented a database to store user transcribed text.
 ![image](https://github.com/user-attachments/assets/769bbb8c-8d11-4d8c-b657-0b3622612143)
 
 
-'''HTML
+```HTML
 <!DOCTYPE html>
 <html lang="en">
 <head>
