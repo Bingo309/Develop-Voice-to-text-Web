@@ -18,16 +18,18 @@ Implemented a database to store user transcribed text.
 # Website
 ![image](https://github.com/user-attachments/assets/208632ed-2638-4c34-ac40-285159683eca)
 
-![image](https://github.com/user-attachments/assets/769bbb8c-8d11-4d8c-b657-0b3622612143)
+![image](https://github.com/user-attachments/assets/38744a79-732c-4eab-941f-fd151313d9c7)
+
+![image](https://github.com/user-attachments/assets/c92a4b39-b852-48d1-9c7d-218d08714b6d)
 
 
-```HTML
+```HTML & PHP
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Voice Recorder with AI Response</title>
+    <title>Voice Recorder</title>
     <style>
         body {
             display: flex;
@@ -45,7 +47,7 @@ Implemented a database to store user transcribed text.
             padding: 10px 20px;
             font-size: 16px;
         }
-        #transcript, #aiResponse {
+        #transcript {
             margin-top: 20px;
             font-size: 18px;
             color: #333;
@@ -57,14 +59,12 @@ Implemented a database to store user transcribed text.
         <button id="startBtn">Start Record</button>
         <button id="stopBtn">Stop Record</button>
         <div id="transcript"></div>
-        <div id="aiResponse"></div>
     </div>
 
     <script>
         const startBtn = document.getElementById('startBtn');
         const stopBtn = document.getElementById('stopBtn');
         const transcriptDiv = document.getElementById('transcript');
-        const aiResponseDiv = document.getElementById('aiResponse');
 
         let recognition;
         if ('webkitSpeechRecognition' in window) {
@@ -74,6 +74,9 @@ Implemented a database to store user transcribed text.
         } else {
             alert('Your browser does not support speech recognition.');
         }
+
+        let debounceTimeout;
+        let lastSentText = '';
 
         if (recognition) {
             recognition.continuous = true;
@@ -86,13 +89,22 @@ Implemented a database to store user transcribed text.
                     transcript += event.results[i][0].transcript;
                 }
                 transcriptDiv.textContent = transcript;
-                sendToAPI(transcript);
+
+                if (debounceTimeout) {
+                    clearTimeout(debounceTimeout);
+                }
+
+                debounceTimeout = setTimeout(() => {
+                    if (transcript !== lastSentText) {
+                        sendToAPI(transcript);
+                        lastSentText = transcript;
+                    }
+                }, 500);
             };
 
             startBtn.addEventListener('click', () => {
                 recognition.start();
                 transcriptDiv.textContent = 'Listening...';
-                aiResponseDiv.textContent = '';
             });
 
             stopBtn.addEventListener('click', () => {
@@ -102,7 +114,7 @@ Implemented a database to store user transcribed text.
         }
 
         function sendToAPI(text) {
-            fetch('/api/generate', {
+            fetch(window.location.href, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -111,12 +123,50 @@ Implemented a database to store user transcribed text.
             })
             .then(response => response.json())
             .then(data => {
-                aiResponseDiv.textContent = data.response;
+                alert(data.response);
             })
             .catch(error => {
                 console.error('Error:', error);
             });
         }
     </script>
+
+    <?php
+    if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+        header('Content-Type: application/json');
+
+        // Database configuration
+        $servername = "localhost";
+        $username = "root"; // replace with your database username
+        $password = ""; // replace with your database password
+        $dbname = "robotcontrol";
+
+        // Create connection
+        $conn = new mysqli($servername, $username, $password, $dbname);
+
+        // Check connection
+        if ($conn->connect_error) {
+            die(json_encode(['response' => 'Connection failed: ' . $conn->connect_error]));
+        }
+
+        // Get the JSON input
+        $data = json_decode(file_get_contents('php://input'), true);
+        $prompt = $data['prompt'];
+
+        // Insert into the database
+        $sql = "INSERT INTO api (Text) VALUES ('$prompt')";
+        if ($conn->query($sql) === TRUE) {
+            $response = ['response' => 'Text saved successfully!'];
+        } else {
+            $response = ['response' => 'Error: ' . $sql . '<br>' . $conn->error];
+        }
+
+        $conn->close();
+
+        // Return response
+        echo json_encode($response);
+        exit();
+    }
+    ?>
 </body>
 </html>
